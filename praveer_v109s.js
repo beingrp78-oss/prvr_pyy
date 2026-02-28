@@ -1,5 +1,4 @@
 const axios = require('axios');
-const qs = require('qs');
 
 const COOKIE = process.env.INSTA_COOKIE;
 const THREAD_ID = process.env.TARGET_THREAD_ID;
@@ -13,49 +12,53 @@ function getCsrf(cookieString) {
 async function sendStrike(agentId) {
     const csrftoken = getCsrf(COOKIE);
     if (!csrftoken) {
-        console.log(`❌ Agent ${agentId}: CSRF Missing`);
+        console.log(`❌ Agent ${agentId}: CSRF Missing from Cookie.`);
         return;
     }
 
-    const config = {
-        method: 'post',
-        // 🔥 Using the mobile direct broadcast endpoint
-        url: 'https://i.instagram.com/api/v1/direct_v2/threads/broadcast/text/',
-        headers: {
-            'cookie': COOKIE,
-            'x-csrftoken': csrftoken,
-            'content-type': 'application/x-www-form-urlencoded',
-            'user-agent': 'Instagram 150.0.0.0.0 (iPhone; iOS 14_4_1; en_US; en-US; scale=2.00; 750x1334) AppleWebKit/420+',
-            'x-ig-app-id': '936619743392459',
-            'x-requested-with': 'XMLHttpRequest'
-        }
+    // 🛡️ AUTHENTIC HEADERS: These bypass the 403 check
+    const headers = {
+        'authority': 'www.instagram.com',
+        'accept': '*/*',
+        'accept-language': 'en-US,en;q=0.9',
+        'content-type': 'application/x-www-form-urlencoded',
+        'cookie': COOKIE,
+        'origin': 'https://www.instagram.com',
+        'referer': `https://www.instagram.com/direct/t/${THREAD_ID}/`,
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'x-csrftoken': csrftoken,
+        'x-ig-app-id': '936619743392459', // 🔑 THE MAGIC KEY
+        'x-instagram-ajax': '1',
+        'x-requested-with': 'XMLHttpRequest'
     };
 
-    console.log(`🛡️ Agent ${agentId} Live - Targeting: ${THREAD_ID}`);
+    console.log(`🚀 Agent ${agentId} Active. Targeting: ${THREAD_ID}`);
 
     while (true) {
         try {
             const ts = Date.now();
-            const data = qs.stringify({
-                'text': MESSAGE_BODY + " " + ts,
-                'thread_ids': `[${THREAD_ID}]`,
-                'client_context': ts,
-                'offline_threading_id': ts
-            });
+            const params = new URLSearchParams();
+            params.append('text', MESSAGE_BODY + " " + Math.random().toString(36).substring(7));
+            params.append('client_context', ts.toString());
 
-            await axios({ ...config, data });
-            process.stdout.write(`✅ [Agent ${agentId}] Hit\r`);
+            await axios.post(
+                `https://www.instagram.com/api/v1/direct_messages/threads/${THREAD_ID}/send_item/`,
+                params.toString(),
+                { headers }
+            );
+
+            process.stdout.write(`✅ [Agent ${agentId}] Strike Success\r`);
         } catch (e) {
-            const status = e.response ? e.response.status : 'CONN_ERR';
-            console.log(`\n⚠️ [Agent ${agentId}] Status: ${status}`);
-            // If it's a 404, it means the Thread ID secret is definitely wrong
-            if (status === 404) {
-                console.log("❌ CRITICAL: Check your TARGET_THREAD_ID Secret!");
-                process.exit(1);
+            const status = e.response ? e.response.status : 'ERR';
+            console.log(`\n⚠️ Agent ${agentId} Status: ${status}`);
+            
+            if (status === 403) {
+                console.log("🚫 [403] Your account has a security block. Refresh your cookie on your phone/browser.");
+                process.exit(1); 
             }
-            await new Promise(r => setTimeout(r, 5000));
+            await new Promise(r => setTimeout(r, 6000));
         }
-        await new Promise(r => setTimeout(r, 60));
+        await new Promise(r => setTimeout(r, 100 + Math.random() * 50));
     }
 }
 
