@@ -2,45 +2,51 @@ import os
 import time
 import random
 from instagrapi import Client
-from instagrapi.exceptions import ClientError, LoginRequired
+from instagrapi.exceptions import ClientError
 
-# --- CONFIGURATION ---
-# In GitHub Secrets, only paste the VALUE of your sessionid (e.g., 80504360780%3A...)
+# --- CONFIG ---
 SESSION_ID = os.environ.get('INSTA_SESSION_ID')
-# Your verified 16-digit ID (User ID or Thread ID)
+# Your verified 16-digit ID
 TARGET_ID = "2859755064232019"
-MESSAGE_TEXT = os.environ.get('MESSAGES', "Strike Active")
+MESSAGE_TEXT = os.environ.get('MESSAGES', "Titan Strike Active")
 
 def start_strike():
     cl = Client()
     
-    # 🛡️ Step 1: Login using Session ID
+    # 🔑 LOGIN
     try:
-        print("🔗 Attempting Session Login...")
+        print("🔗 Connecting to Instagram...")
         cl.login_by_sessionid(SESSION_ID)
-        print(f"✅ Login Successful! Logged in as: {cl.username}")
+        print(f"✅ Logged in as: {cl.username}")
     except Exception as e:
         print(f"❌ Login Failed: {e}")
         return
 
-    # 🚀 Step 2: The Strike Loop
-    print(f"🔥 Targeting ID: {TARGET_ID} | Starting Engine...")
+    print(f"🔥 Targeting: {TARGET_ID}")
     
     while True:
         try:
-            # instagrapi handles the 404/400 logic internally
-            # It will automatically find if this is a User or a Thread
-            cl.direct_send(f"{MESSAGE_TEXT} [{random.randint(100, 999)}]", user_ids=[TARGET_ID])
-            print(f"✅ Strike Delivered to {TARGET_ID}")
+            # 🚀 We use direct_send with the TARGET_ID as a USER_ID first.
+            # If it's a thread ID, instagrapi handles the switch automatically.
+            cl.direct_send(f"{MESSAGE_TEXT} {random.randint(100, 999)}", user_ids=[int(TARGET_ID)])
             
-            # Random sleep between 3 to 7 seconds to mimic human behavior
-            time.sleep(random.uniform(3, 7))
+            print(f"✅ [SUCCESS] Message delivered to {TARGET_ID}")
+            time.sleep(random.uniform(5, 10)) # Human-like delay to avoid 429
             
         except ClientError as e:
-            print(f"⚠️ Instagram blocked the request: {e}")
-            time.sleep(60) # Cool down for 1 minute
+            # If the broadcast path fails, this block catches it and tries the 'thread' path
+            if "404" in str(e):
+                print("⚠️ Broadcast path 404. Switching to Thread-Direct path...")
+                try:
+                    cl.direct_answer(TARGET_ID, f"{MESSAGE_TEXT} {random.randint(100, 999)}")
+                    print("✅ [SUCCESS] Thread-Direct delivered.")
+                except Exception as e2:
+                    print(f"❌ Critical Failure: {e2}")
+            else:
+                print(f"⚠️ Instagram block: {e}")
+            time.sleep(60)
         except Exception as e:
-            print(f"🛑 Unexpected Error: {e}")
+            print(f"🛑 Error: {e}")
             time.sleep(10)
 
 if __name__ == "__main__":
