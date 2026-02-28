@@ -1,90 +1,94 @@
 # -*- coding: utf-8 -*-
-# 🚀 PROJECT: PRAVEER.OWNS (V103 CRON-MACHINE #77)
-# 📅 STATUS: STABLE-STRIKE | 8-MACHINES | 16-AGENTS
-
-import os, time, random, threading, sys, tempfile
-import undetected_chromedriver as uc
+import os, time, random, threading, sys, tempfile, subprocess, shutil
+from concurrent.futures import ThreadPoolExecutor
+from selenium import webdriver
 from selenium_stealth import stealth
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 
-# --- ⚡ #77 CONFIG ---
-THREADS = 2 # 2 Agents per Machine (Matrix x 8 = 16 Agents)
-STRIKE_DELAY = 0.5 
-TARGET_ID = os.environ.get("TARGET_THREAD_ID", "2859755064232019")
-MACHINE_ID = os.environ.get("MACHINE_ID", "1")
+# --- V100 TURBO CONFIG ---
+THREADS = 2 
+TOTAL_DURATION = 25000 
+BURST_SPEED = (0.05, 0.1) # 🔥 Reduced delay for machine-gun speed
 
 def get_driver(agent_id):
-    options = uc.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=500,400") 
+    chrome_options = Options()
+    chrome_options.add_argument("--headless=new") 
+    chrome_options.add_argument("--no-sandbox") 
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
     
-    temp_dir = os.path.join(tempfile.gettempdir(), f"pv_v103_77_m{MACHINE_ID}_a{agent_id}")
-    driver = uc.Chrome(options=options, user_data_dir=temp_dir, version_main=122)
-    driver.set_page_load_timeout(25)
+    # 🏎️ CPU Optimization: Desktop mode is actually faster than Mobile Emulation in Headless
+    chrome_options.add_argument("--window-size=1280,720")
+    chrome_options.add_argument("--blink-settings=imagesEnabled=false") # Don't load images
     
+    temp_dir = os.path.join(tempfile.gettempdir(), f"v100_turbo_{agent_id}")
+    chrome_options.add_argument(f"--user-data-dir={temp_dir}")
+
+    driver = webdriver.Chrome(options=chrome_options)
     stealth(driver, languages=["en-US"], vendor="Google Inc.", platform="Win32", fix_hairline=True)
     return driver
 
-def force_lexical_strike(driver, text):
-    """Bypasses React 18 DOM by injecting via the native browser setter."""
+def turbo_inject(driver, text):
+    """Fires messages via the internal React dispatcher (Zero Latency)."""
     try:
-        entropy = f"{random.randint(100,999)}"
+        # This JS finds the box, injects text, and triggers the Enter key in 1ms
         driver.execute_script("""
-            const box = document.querySelector('div[role="textbox"]');
-            const msg = arguments[0] + " " + arguments[1];
+            var box = document.querySelector('div[role="textbox"], textarea');
             if (box) {
                 box.focus();
-                // 🛠️ The V103 #77 Special: Native Setter Bypass
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, 'innerText').set;
-                nativeSetter.call(box, msg);
-                box.dispatchEvent(new Event('input', { bubbles: true }));
-
-                setTimeout(() => {
-                    const sendBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Send'));
-                    if (sendBtn) { sendBtn.click(); }
-                    else { box.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); }
-                }, 100);
+                // Direct text injection
+                document.execCommand('insertText', false, arguments[0]);
+                
+                // Immediate Enter Dispatch
+                var enter = new KeyboardEvent('keydown', {
+                    key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true
+                });
+                box.dispatchEvent(enter);
             }
-        """, text, entropy)
+        """, text)
         return True
-    except: return False
+    except:
+        return False
 
-def run_agent(agent_id, cookie, text):
-    time.sleep(agent_id * 10) 
+def run_life_cycle(agent_id, cookie, target, messages):
     while True:
         driver = None
         try:
             driver = get_driver(agent_id)
             driver.get("https://www.instagram.com/")
-            time.sleep(5)
-            driver.add_cookie({'name': 'sessionid', 'value': cookie.strip(), 'domain': '.instagram.com'})
-            driver.get(f"https://www.instagram.com/direct/t/{TARGET_ID}/")
             
-            # 🔒 Pin Navigation to prevent the 'Reload Loop'
-            driver.execute_script("window.location.reload = function() { return false; };")
-            print(f"✅ M{MACHINE_ID}-A{agent_id} ARMED", flush=True)
-            time.sleep(15)
+            # Inject session
+            driver.add_cookie({'name': 'sessionid', 'value': cookie.strip(), 'domain': '.instagram.com'})
+            driver.get(f"https://www.instagram.com/direct/t/{target}/")
+            
+            # Wait for chat load (Staggered)
+            time.sleep(12) 
+            print(f"✅ Agent {agent_id} Armed", flush=True)
 
-            while True:
-                if "direct/t/" not in driver.current_url: break
-                if force_lexical_strike(driver, text):
-                    sys.stdout.write(f"[{MACHINE_ID}-{agent_id}]")
+            start_time = time.time()
+            # 2-Minute Hyper-Burst
+            while (time.time() - start_time) < 120:
+                msg = random.choice(messages) + " " + str(random.randint(100,999))
+                if turbo_inject(driver, msg):
+                    sys.stdout.write("🚀")
                     sys.stdout.flush()
-                time.sleep(STRIKE_DELAY)
-        except: pass
+                time.sleep(random.uniform(*BURST_SPEED))
+                
+        except Exception as e:
+            print(f"⚠️ Agent {agent_id} glitch, restarting...", flush=True)
         finally:
             if driver: driver.quit()
-            time.sleep(5)
+            time.sleep(2)
 
 def main():
     cookie = os.environ.get("INSTA_COOKIE", "").strip()
-    text = os.environ.get("MESSAGES", "V103_77").strip()
-    for i in range(THREADS):
-        t = threading.Thread(target=run_agent, args=(i+1, cookie, text))
-        t.daemon = True
-        t.start()
-    while True: time.sleep(10)
+    target = os.environ.get("TARGET_THREAD_ID", "").strip()
+    messages = os.environ.get("MESSAGES", "V100").split("|")
+    
+    with ThreadPoolExecutor(max_workers=THREADS) as executor:
+        for i in range(THREADS):
+            executor.submit(run_life_cycle, i+1, cookie, target, messages)
 
 if __name__ == "__main__":
     main()
