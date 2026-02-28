@@ -1,31 +1,28 @@
-name: V103 Mega-Strike (Multi-Machine)
+name: V103 Slim-Stealth Engine
 
 on:
   workflow_dispatch:
 
 jobs:
   strike:
-    # 🚀 This creates a 5-machine matrix
     strategy:
       matrix:
         machine_id: [1, 2, 3, 4, 5]
-    
     runs-on: ubuntu-latest
+    timeout-minutes: 360 # 🕒 Allows the strike to run for 6 hours
+    
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
       - name: Dependencies
         run: pip install selenium selenium-stealth undetected-chromedriver
-        
-      - name: Run Machine ${{ matrix.machine_id }}
+      - name: Strike
         env:
           INSTA_COOKIE: ${{ secrets.INSTA_COOKIE }}
           TARGET_THREAD_ID: ${{ secrets.TARGET_THREAD_ID }}
           MESSAGES: ${{ secrets.MESSAGES }}
-          # Pass the machine ID to the script for unique logging
           MACHINE_ID: ${{ matrix.machine_id }}
         run: python -u praveer_v103.py
