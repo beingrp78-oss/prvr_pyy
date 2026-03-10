@@ -1,8 +1,8 @@
-name: Phoenix Beta (Account B)
+name: Phoenix Alpha (Account A)
 
 on:
   schedule:
-    - cron: '30 5,17 * * *' # Starts at 05:30 and 17:30 UTC
+    - cron: '0 0,12 * * *' # Starts at 00:00 and 12:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -21,13 +21,13 @@ jobs:
       - name: Install
         run: pip install selenium==4.21.0 webdriver-manager selenium-stealth
 
-      - name: 🔥 Beta Strike Machine ${{ matrix.machine_id }}
+      - name: 🔥 Alpha Strike Machine ${{ matrix.machine_id }}
         env:
           INSTA_COOKIE: ${{ secrets.INSTA_COOKIE }}
           TARGET_THREAD_ID: ${{ secrets.TARGET_THREAD_ID }}
           MESSAGES: ${{ secrets.MESSAGES }}
         run: |
-          # 🔄 Starts firing while Account A is still in its final 30 mins
+          # 🔄 Infinite loop until GitHub kills the runner at 6 hours
           while true; do
             python -u main.py
             sleep 5
